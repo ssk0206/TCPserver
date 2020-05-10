@@ -50,14 +50,15 @@ func main() {
 					panic(err)
 				}
 				fmt.Println(string(dump))
+				content := "Hello World\n"
 
 				// レスポンスを書き込む
 				// HTTP/1.1かつ、ContentLengthの設定が必要
 				response := http.Response{
 					StatusCode: 200,
 					ProtoMajor: 1,
-					ProtoMinor: 0,
-					Body:       ioutil.NopCloser(strings.NewReader("Hello World\n")),
+					ProtoMinor: 1,
+					Body:       ioutil.NopCloser(strings.NewReader(content)),
 				}
 				response.Write(conn)
 			}
