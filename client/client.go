@@ -6,25 +6,61 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 )
 
 func main() {
-	conn, err := net.Dial("tcp", "localhost:8888")
-	if err != nil {
-		panic(err)
+	sendMessages := []string{
+		"ASCII",
+		"PROCRAMMING",
+		"PLUS",
 	}
-	request, err := http.NewRequest("GET", "http://localhost:8888", nil)
-	if err != nil {
-		panic(err)
+
+	current := 0
+	var conn net.Conn = nil
+
+	// リトライ用にループ全体を囲う
+	for {
+		var err error
+		// まだコネクションを張っていない / エラーでリトライ時はDialから行う
+		if conn == nil {
+			conn, err = net.Dial("tcp", "localhost:8888")
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("Access: %d\n", current)
+		}
+
+		// POSTで文字列を送るリクエストを作成
+		request, err := http.NewRequest(
+			"POST",
+			"http://localhost:8888",
+			strings.NewReader(sendMessages[current]))
+		if err != nil {
+			panic(err)
+		}
+		err = request.Write(conn)
+		if err != nil {
+			panic(err)
+		}
+		// サーバーから読み込む。タイムアウトはここでエラーになるのでリトライ
+		response, err := http.ReadResponse(bufio.NewReader(conn), request)
+		if err != nil {
+			fmt.Println("Retry")
+			conn = nil
+			continue
+		}
+		// 結果を表示
+		dump, err := httputil.DumpResponse(response, true)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(dump))
+		// 全部送信完了して入れば終了
+		current++
+		if current == len(sendMessages) {
+			break
+		}
 	}
-	request.Write(conn)
-	response, err := http.ReadResponse(bufio.NewReader(conn), request)
-	if err != nil {
-		panic(err)
-	}
-	dump, err := httputil.DumpResponse(response, true)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(dump))
+	conn.Close()
 }
